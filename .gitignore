@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+
+# Python files
+*.pyc
+*.pyo
+__pycache__/
+
+# Django database
+db.sqlite3
+
+# Environment variables
+.env
+
+# Static files
+staticfiles/
+*.log
+
+# Media files (optional, if you're using a media directory for uploads)
+media/
+
+# VSCode project files (optional, if you use VSCode)
+.vscode/
+
+# MacOS files (optional, if you're on macOS)
+.DS_Store
