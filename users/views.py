@@ -13,6 +13,14 @@ def get_users(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
+def create_user_via_oauth(request):
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, statuts=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
 def create_user(request):
     serializer = UserSerializer(data=request.data)  #deserialize  to convert to Django Model Instance
     if serializer.is_valid():
