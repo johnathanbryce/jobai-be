@@ -14,11 +14,14 @@ def get_users(request):
 
 @api_view(['POST'])
 def create_user_via_oauth(request):
-    serializer = UserSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, statuts=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    """
+    1. Expect an ID token or access token from the request data.
+    2. Verify that token with Google.
+    3. Extract user info (email, name, google_id, profile_image_url).
+    4. Create or update the User record in the database.
+    5. Return the serialized user.
+    """
+    return 
 
 @api_view(['POST'])
 def create_user(request):
