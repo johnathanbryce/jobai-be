@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -39,10 +40,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "users",
     "job_postings",
+    "gmail_integration",
     "rest_framework"
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware", # must be first!
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -51,6 +54,12 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://jobai.dev"
+]
+
 
 ROOT_URLCONF = "jobai_backend.urls"
 
