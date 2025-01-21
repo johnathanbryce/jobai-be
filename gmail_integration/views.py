@@ -16,13 +16,12 @@ def fetch_emails_view(request):
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if not auth_header:
             return JsonResponse({"error": "No Authorization header"}, status=400)
-        print("DEBUG: AUTH HEADER -->", auth_header)
 
         # Typically looks like 'Bearer <access_token>'
         token_type, _, access_token = auth_header.partition(" ")
         if token_type.lower() != "bearer":
             return JsonResponse({"error": "Invalid token type"}, status=400)
-        print("DEBUG: ACCESS TOKEN -->", access_token) 
+        # print("DEBUG: ACCESS TOKEN -->", access_token) 
 
         body = json.loads(request.body)
         user_email = body.get("email")

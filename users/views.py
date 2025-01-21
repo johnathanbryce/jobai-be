@@ -21,7 +21,59 @@ def create_user_via_oauth(request):
     4. Create or update the User record in the database.
     5. Return the serialized user.
     """
-    return 
+    data = request.data
+    print('user data', data)
+
+     # Extract fields from the incoming request
+    google_id = data.get("google_id")
+    email = data.get("email")
+    username = data.get("username") or (email.split("@")[0] if email else None)
+    profile_image_url = data.get("profile_image_url")
+    first_name = data.get("first_name") or username.split(" ")[0] # fallback is first word from username
+    last_name = data.get("last_name") or username.split(" ")[1] # fallback is second word from username
+    print('names', first_name, last_name)
+
+
+    if not email or not google_id:
+        return Response(
+            {"error": "email and google_id are required fields."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Either get the existing user by email or create a new one.
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={
+            "username": username,
+            "google_id": google_id,
+            "profile_image_url": profile_image_url,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+    )
+
+    # If user already exists, update any details if needed.
+    if not created:
+        if google_id:
+            user.google_id = google_id
+        if profile_image_url:
+            user.profile_image_url = profile_image_url
+        if first_name:
+            user.first_name = first_name
+        if last_name:
+            user.last_name = last_name
+        user.save()
+
+    # Serialize the user data for the response.
+    serializer = UserSerializer(user)
+    return Response(
+        {
+            "user": serializer.data,
+            "is_new_user": created,
+            "message": "User created successfully." if created else "User updated successfully."
+        },
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    )
 
 @api_view(['POST'])
 def create_user(request):
