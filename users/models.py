@@ -3,7 +3,7 @@ from django.db import models
 
 class User(AbstractUser):
     """
-    Inherits all fields from AbstractUser (username, email, etc.).
+    Inherits all fields from AbstractUser (username, email, first_name, last_name etc.).
     Add your custom fields below.
     """
     google_id = models.CharField(max_length=255, blank=True, null=True)
