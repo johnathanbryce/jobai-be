@@ -27,6 +27,21 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'job_postings': {  # Replace with your app's name if different
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
 
 # Application definition
 
