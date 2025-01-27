@@ -1,9 +1,6 @@
 from django.shortcuts import render
-# gmail_integration/views.py
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-import json
-import os
 import base64
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -12,18 +9,18 @@ from django.http import JsonResponse
 import re
 from bs4 import BeautifulSoup
 
-def fetch_recent_emails(access_token, max_results=5):
+def fetch_recent_emails(access_token, from_email, max_results=5):
     """
     Fetch recent emails from Gmail using the provided access token.
-    Only return emails from "jobalerts-noreply@linkedin.com".
+    Return emails based on the sender's email address and parse the content accordingly.
     """
     try:
         # Initialize the Gmail API client
         creds = Credentials(token=access_token)
         service = build('gmail', 'v1', credentials=creds)
 
-        # Use the Gmail API query to only fetch emails from the specified sender
-        query = "from:jobalerts-noreply@linkedin.com"
+        # Use the Gmail API query to fetch emails from the specified sender
+        query = f"from:{from_email}"
         results = service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
         messages = results.get('messages', [])
 
@@ -48,24 +45,29 @@ def fetch_recent_emails(access_token, max_results=5):
                         body = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
                         break
 
-            # If body is HTML, parse with BeautifulSoup
+            # Parse the email body based on the sender
             jobs = []
             if body:
                 soup = BeautifulSoup(body, 'html.parser')
-                
-                # Extract the primary job listing (e.g., email subject content)
-                main_job = soup.find('div', text=re.compile("Your job alert for"))
-                if main_job:
-                    jobs.append(main_job.get_text(strip=True))
 
-                # Extract other job listings under the "Other jobs you might be interested in" section
-                other_jobs_section = soup.find('h3', text=re.compile("Other jobs you might be interested in"))
-                if other_jobs_section:
-                    # Get the next sibling elements or container with the job listings
-                    other_jobs = other_jobs_section.find_next('ul')  # Assuming jobs are in a list
-                    if other_jobs:
-                        for job in other_jobs.find_all('li'):
-                            jobs.append(job.get_text(strip=True))
+                if from_email == "jobalerts-noreply@linkedin.com":
+                    # Parse LinkedIn job alerts
+                    main_job = soup.find('div', text=re.compile("Your job alert for"))
+                    if main_job:
+                        jobs.append(main_job.get_text(strip=True))
+
+                    other_jobs_section = soup.find('h3', text=re.compile("Other jobs you might be interested in"))
+                    if other_jobs_section:
+                        other_jobs = other_jobs_section.find_next('ul')  # Assuming jobs are in a list
+                        if other_jobs:
+                            for job in other_jobs.find_all('li'):
+                                jobs.append(job.get_text(strip=True))
+                
+                elif from_email == "alert@indeed.com":
+                    # Parse Indeed job alerts
+                    job_sections = soup.find_all('a', href=True, text=re.compile("View job"))
+                    for job_section in job_sections:
+                        jobs.append(job_section.get_text(strip=True))
 
             # Add parsed email details
             emails.append({
@@ -79,7 +81,6 @@ def fetch_recent_emails(access_token, max_results=5):
 
     except Exception as e:
         return {"error": str(e)}
-
 
 
 @csrf_exempt
@@ -97,14 +98,18 @@ def fetch_emails_view(request):
         if token_type.lower() != "bearer":
             return JsonResponse({"error": "Invalid token type"}, status=400)
 
-        # Fetch recent emails
-        emails = fetch_recent_emails(access_token, max_results=5)
+        # Define the list of senders to fetch emails from
+        senders = ["jobalerts-noreply@linkedin.com", "alert@indeed.com"]
+        all_emails = []
 
-        # Check for errors
-        if isinstance(emails, dict) and "error" in emails:
-            return JsonResponse({"error": emails["error"]}, status=500)
+        for sender in senders:
+            # Fetch recent emails for each sender
+            emails = fetch_recent_emails(access_token, sender, max_results=5)
+            if isinstance(emails, dict) and "error" in emails:
+                return JsonResponse({"error": emails["error"]}, status=500)
+            all_emails.extend(emails)
 
         # Simplified implementation
-        return JsonResponse(emails, safe=False, status=200)
+        return JsonResponse(all_emails, safe=False, status=200)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
