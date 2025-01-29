@@ -8,8 +8,8 @@ class JobPosting(models.Model):
 
     # Relationships
     user = models.ForeignKey(
-        User,  # Reference to the User model
-        on_delete=models.CASCADE,  # Deletes job postings if the user is deleted
+        User,  
+        on_delete=models.CASCADE, 
         related_name="job_postings"  # Allows reverse querying: user.job_postings.all()
     )
 
@@ -32,7 +32,7 @@ class JobPosting(models.Model):
     # Email/Gmail-Specific Fields
     gmail_message_id = models.CharField(
         max_length=255,
-        unique=True,  # Enforces uniqueness
+        unique=True,  
         help_text="Unique Gmail message ID if fetched from Gmail"
     )
     gmail_thread_id = models.CharField(

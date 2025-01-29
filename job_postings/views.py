@@ -22,8 +22,8 @@ def save_job_postings(request):
             user_email = data.get("user_email")  
             job_postings = data.get("job_postings", [])
 
-            logger.debug(f'Received data: {data}')
-            logger.debug(f'Number of job postings: {len(job_postings)}')
+            #logger.debug(f'Received data: {data}')
+            #logger.debug(f'Number of job postings: {len(job_postings)}')
 
             if not user_email or not job_postings:
                 return JsonResponse({"error": "Invalid data"}, status=400)
@@ -75,3 +75,41 @@ def save_job_postings(request):
 
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from .models import JobPosting
+import logging
+
+logger = logging.getLogger('job_postings')
+
+@csrf_exempt
+def delete_job_posting(request, emailId):
+    """
+    API endpoint to delete a job posting from the database.
+    """
+    if request.method == "DELETE": 
+        logger.info(f"DELETE request received for emailId: {emailId}")
+        try:
+            # Retrieve the JobPosting object
+            job_posting = JobPosting.objects.get(gmail_message_id=emailId)
+        except JobPosting.DoesNotExist:
+            logger.warning(f"JobPosting with gmail_message_id {emailId} does not exist.")
+            return JsonResponse({'success': False, 'error': 'Job posting not found.'}, status=404)
+        except Exception as e:
+            logger.error(f"Error retrieving JobPosting: {e}")
+            return JsonResponse({'success': False, 'error': 'An error occurred while retrieving the job posting.'}, status=500)
+        
+        try:
+            # Delete the JobPosting object
+            job_posting.delete()
+            logger.info(f"JobPosting with gmail_message_id {emailId} deleted successfully.")
+            return JsonResponse({'success': True, 'email_id': emailId}, status=200)
+        except Exception as e:
+            logger.error(f"Failed to delete JobPosting: {e}")
+            return JsonResponse({'success': False, 'error': 'An error occurred while deleting the job posting.'}, status=500)
+    else:
+        logger.warning(f"Received non-DELETE request: {request.method}")
+        return JsonResponse({'success': False, 'error': 'Method not allowed.'}, status=405)
+
+
+        
