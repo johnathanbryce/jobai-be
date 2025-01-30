@@ -49,6 +49,7 @@ class JobPosting(models.Model):
 
     # Status / Management
     is_deleted = models.BooleanField(default=False, help_text="If user removes or hides posting")
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
