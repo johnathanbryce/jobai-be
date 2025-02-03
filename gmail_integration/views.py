@@ -11,7 +11,7 @@ from .services import parse_indeed_email, parse_linkedin_email
 import re
 from bs4 import BeautifulSoup
 
-def fetch_recent_emails(access_token, from_email, max_results=5):
+def fetch_recent_emails(access_token, from_email, max_results=2): # TODO: change max_results to 5 or remove when done testing
     """
     Fetch recent emails from Gmail using the provided access token.
     Return emails based on the sender's email address and parse the content accordingly.
@@ -71,10 +71,8 @@ def fetch_recent_emails(access_token, from_email, max_results=5):
                 'id': msg['id'],
                 'subject': subject,
                 'sender': sender,
-                'jobs': jobs,  # List of extracted job listings
+                'jobs': jobs,  # List of extracted job listings ** The individual job postings a user will interact with on the FE **
             })
-
-            #print('emails', emails[0])
 
         return emails
 

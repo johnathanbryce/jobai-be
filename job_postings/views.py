@@ -30,7 +30,7 @@ def get_job_postings(request):
 
         try:
             user = User.objects.get(email=user_email)
-            logger.info(f'User found: {user_email}')
+            # logger.info(f'User found: {user_email}')
         except User.DoesNotExist:
             return JsonResponse({"error": "User not found"}, status=404)
         except Exception as e:
@@ -46,8 +46,9 @@ def get_job_postings(request):
         for job in job_postings:
             try:
                 serialized_job = {
+                    "job_uuid": str(job.job_uuid),
                     "title": job.title,
-                    "company": job.company_name,
+                    "company_name": job.company_name,
                     "location": job.location,
                     "salary": job.salary,
                     "job_type": job.job_type,
@@ -85,12 +86,7 @@ def get_job_postings(request):
 
 @csrf_exempt
 def save_job_postings(request):
-    """
-    API endpoint to save job postings to the database.
-    Implements soft deletion handling.
-    """
     if request.method == "POST":
-        logger.info('save_job_postings POST request received')
         try:
             data = json.loads(request.body)
             user_email = data.get("user_email")  
@@ -100,7 +96,6 @@ def save_job_postings(request):
                 logger.error("Invalid data: Missing user_email or job_postings")
                 return JsonResponse({"error": "Invalid data"}, status=400)
 
-            # Attempt to fetch the user by email
             try:
                 user = User.objects.get(email=user_email)
                 logger.info(f'User found: {user_email}')
@@ -114,29 +109,28 @@ def save_job_postings(request):
             new_jobs = []
             for job in job_postings:
                 gmail_id = job.get("gmail_message_id")
+                job_url = job.get("job_url")
                 if not gmail_id:
-                    logger.warning(f'Skipping job posting without gmail_message_id: {job}')
+                    # logger.warning(f'Skipping job posting without gmail_message_id: {job}')
                     continue
 
-                if JobPosting.objects.filter(gmail_message_id=gmail_id, is_deleted=False).exists():
-                    logger.info(f"JobPosting {gmail_id} already exists; skipping.")
+                # Check for existing job posting with the same gmail_id and job_url
+                if JobPosting.objects.filter(gmail_message_id=gmail_id, job_url=job_url, is_deleted=False).exists():
+                    # logger.info(f"JobPosting with gmail_message_id {gmail_id} and job_url {job_url} already exists; skipping.")
                     continue
 
-                # Parse 'fetched_at' into datetime object
                 fetched_at_str = job.get("fetched_at")
                 fetched_at = parse_datetime(fetched_at_str)
                 if not fetched_at:
                     logger.warning(f'Invalid fetched_at format: {fetched_at_str}')
                     continue
 
-                # Parse 'date_posted' and 'application_deadline' into datetime objects
                 date_posted_str = job.get("date_posted")
                 date_posted = parse_datetime(date_posted_str) if date_posted_str else None
 
                 application_deadline_str = job.get("application_deadline")
                 application_deadline = parse_datetime(application_deadline_str) if application_deadline_str else None
 
-                # Create JobPosting instance (not saved yet)
                 new_job = JobPosting(
                     user=user,
                     title=job.get("title", "No Title"),
@@ -153,6 +147,7 @@ def save_job_postings(request):
                     summary=job.get("summary"),
                     experience_level=job.get("experience_level"),
                     industries=job.get("industries"),
+                    skills=job.get("skills"),
                     job_description_snippet=job.get("job_description_snippet"),
                     status=job.get("status"),
                     match_score=job.get("match_score"),
@@ -160,9 +155,10 @@ def save_job_postings(request):
                     source=job.get("source", "Unknown"),
                     gmail_message_id=gmail_id,
                     gmail_thread_id=job.get("gmail_thread_id"),
-                    job_url=job.get("job_url"),
+                    job_url=job_url,
                 )
                 new_jobs.append(new_job)
+                # logger.debug(f"Prepared new job posting: {new_job}")
 
             # Bulk create all new job postings
             JobPosting.objects.bulk_create(new_jobs)
@@ -182,38 +178,36 @@ def save_job_postings(request):
         return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
-
-
 @csrf_exempt
-def delete_job_posting(request, emailId):
+def delete_job_posting(request, job_uuid):
     """
     API endpoint to soft delete a job posting from the database.
     """
     if request.method == "DELETE": 
-        logger.info(f"DELETE request received for emailId: {emailId}")
+        logger.info(f"DELETE request received for job_uuid: {job_uuid}")
         try:
-            # Retrieve the JobPosting object
-            job_posting = JobPosting.objects.get(gmail_message_id=emailId)
+            # Retrieve the JobPosting object by job_uuid
+            job_posting = JobPosting.objects.get(job_uuid=job_uuid, is_deleted=False)
         except JobPosting.DoesNotExist:
-            logger.warning(f"JobPosting with gmail_message_id {emailId} does not exist.")
+            logger.warning(f"JobPosting with job_uuid {job_uuid} does not exist.")
             return JsonResponse({'success': False, 'error': 'Job posting not found.'}, status=404)
         except Exception as e:
             logger.error(f"Error retrieving JobPosting: {e}")
             return JsonResponse({'success': False, 'error': 'An error occurred while retrieving the job posting.'}, status=500)
         
         try:
-            # Soft delete the JobPosting (marks the is_deleted and deleted_at columns in our database)
-            # cron task eventually deletes this job_posting permanently from our db after X amount of days 
+            # Soft delete the JobPosting
             job_posting.is_deleted = True
             job_posting.deleted_at = timezone.now()
             job_posting.save()
-            logger.info(f"JobPosting with gmail_message_id {emailId} marked as deleted.")
-            return JsonResponse({'success': True, 'email_id': emailId}, status=200)
+            logger.info(f"JobPosting with job_uuid {job_uuid} marked as deleted.")
+            return JsonResponse({'success': True, 'job_uuid': job_uuid}, status=200)
         except Exception as e:
             logger.error(f"Failed to soft delete JobPosting: {e}")
             return JsonResponse({'success': False, 'error': 'An error occurred while deleting the job posting.'}, status=500)
     else:
         logger.warning(f"Received non-DELETE request: {request.method}")
         return JsonResponse({'success': False, 'error': 'Method not allowed.'}, status=405)
+
 
         

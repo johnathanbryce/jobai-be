@@ -1,5 +1,4 @@
-# job_postings/models.py
-
+import uuid
 from django.db import models
 from users.models import User
 
@@ -21,7 +20,14 @@ class JobPosting(models.Model):
     company_url = models.URLField(null=True, blank=True, help_text="URL to the company's website.")
     company_logo_url = models.URLField(null=True, blank=True, help_text="URL to the company's logo image.")
     location = models.TextField(null=True, blank=True, help_text="Location of the job.")
+    job_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        help_text="Unique identifier for each job posting."
+    )
     job_url = models.URLField(
+        max_length=2000,
         null=True,
         blank=True,
         help_text="Direct URL to the job posting."
@@ -114,7 +120,7 @@ class JobPosting(models.Model):
     # Email/Gmail-Specific Fields
     gmail_message_id = models.CharField(
         max_length=255,
-        unique=True,
+        unique=False,
         help_text="Unique Gmail message ID if fetched from Gmail."
     )
     gmail_thread_id = models.CharField(

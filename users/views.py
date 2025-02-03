@@ -22,7 +22,6 @@ def create_user_via_oauth(request):
     5. Return the serialized user.
     """
     data = request.data
-    print('user data', data)
 
      # Extract fields from the incoming request
     google_id = data.get("google_id")
@@ -31,8 +30,6 @@ def create_user_via_oauth(request):
     profile_image_url = data.get("profile_image_url")
     first_name = data.get("first_name") or username.split(" ")[0] # fallback is first word from username
     last_name = data.get("last_name") or username.split(" ")[1] # fallback is second word from username
-    print('names', first_name, last_name)
-
 
     if not email or not google_id:
         return Response(
