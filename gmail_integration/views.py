@@ -5,11 +5,13 @@ import base64
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from django.http import JsonResponse
+import json
+from .services import parse_indeed_email, parse_linkedin_email
 
 import re
 from bs4 import BeautifulSoup
 
-def fetch_recent_emails(access_token, from_email, max_results=5):
+def fetch_recent_emails(access_token, from_email, max_results=2): # TODO: change max_results to 5 or remove when done testing
     """
     Fetch recent emails from Gmail using the provided access token.
     Return emails based on the sender's email address and parse the content accordingly.
@@ -28,6 +30,7 @@ def fetch_recent_emails(access_token, from_email, max_results=5):
         emails = []
         for message in messages:
             msg = service.users().messages().get(userId='me', id=message['id']).execute()
+
             payload = msg.get('payload', {})
             headers = payload.get('headers', [])
             subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(No Subject)')
@@ -48,33 +51,27 @@ def fetch_recent_emails(access_token, from_email, max_results=5):
             # Parse the email body based on the sender
             jobs = []
             if body:
-                soup = BeautifulSoup(body, 'html.parser')
-
-                if from_email == "jobalerts-noreply@linkedin.com":
-                    # Parse LinkedIn job alerts
-                    main_job = soup.find('div', text=re.compile("Your job alert for"))
-                    if main_job:
-                        jobs.append(main_job.get_text(strip=True))
-
-                    other_jobs_section = soup.find('h3', text=re.compile("Other jobs you might be interested in"))
-                    if other_jobs_section:
-                        other_jobs = other_jobs_section.find_next('ul')  # Assuming jobs are in a list
-                        if other_jobs:
-                            for job in other_jobs.find_all('li'):
-                                jobs.append(job.get_text(strip=True))
-                
-                elif from_email == "alert@indeed.com":
-                    # Parse Indeed job alerts
-                    job_sections = soup.find_all('a', href=True, text=re.compile("View job"))
-                    for job_section in job_sections:
-                        jobs.append(job_section.get_text(strip=True))
+                from_email_lower = from_email.lower()
+                try:
+                    if from_email_lower == "alert@indeed.com":
+                        jobs = parse_indeed_email(body)
+                    elif from_email_lower == "jobalerts-noreply@linkedin.com":
+                        jobs = parse_linkedin_email(body)
+                    else:
+                        # For unknown senders, return an empty list
+                        jobs = []
+                except Exception as e:
+                    # Log the error for debugging purposes
+                    print(f"Error parsing email from {from_email}: {e}")
+                    # Return an empty list in case of any parsing errors
+                    jobs = []
 
             # Add parsed email details
             emails.append({
                 'id': msg['id'],
                 'subject': subject,
                 'sender': sender,
-                'jobs': jobs,  # List of extracted job listings
+                'jobs': jobs,  # List of extracted job listings ** The individual job postings a user will interact with on the FE **
             })
 
         return emails
@@ -109,7 +106,7 @@ def fetch_emails_view(request):
                 return JsonResponse({"error": emails["error"]}, status=500)
             all_emails.extend(emails)
 
-        # Simplified implementation
+        # Return the aggregated emails with job listings
         return JsonResponse(all_emails, safe=False, status=200)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
